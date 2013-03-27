@@ -1,0 +1,4 @@
+albatross
+=========
+
+Intervals for Scala
