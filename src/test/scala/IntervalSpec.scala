@@ -27,25 +27,25 @@ class IntervalSpec extends Specification {
   bt ^
   "The intersection of two intervals" ^
     "Is the second interval if the first contains the second" ! {
-      (open(-10) to open(10)) intersect (open(-5) to open(5)) must_== (open(-5) to open(5))
+      (open(-10) to open(10)) intersect (open(-5) to open(5)) must_== Some(open(-5) to open(5))
     } ^
     "Is the first interval if the second contains the first" ! {
-      (open(-10) to open(10)) intersect (open(-25) to open(25)) must_== (open(-10) to open(10))
+      (open(-10) to open(10)) intersect (open(-25) to open(25)) must_== Some(open(-10) to open(10))
     } ^
     "Is the overlap between the two intervals if they are connected" ! {
-      (open(-10) to open(10)) intersect (open(5) to open(15)) must_== (open(5) to open(10))
+      (open(-10) to open(10)) intersect (open(5) to open(15)) must_== Some(open(5) to open(10))
     } ^
     "Is a singleton interval if the two intervals abut" ! {
-      (closed(-10) to closed(10)) intersect (closed(10) to closed(20)) must_== (closed(10) to closed(10))
+      (closed(-10) to closed(10)) intersect (closed(10) to closed(20)) must_== Some(closed(10) to closed(10))
     } ^
     "Is an open interval when one is open and the other is closed, but both have the same endpoints" ! {
       val openInterval = open(-10) to open(10)
       val closedInterval = closed(-10) to closed(10)
-      openInterval intersect closedInterval must_== openInterval
-      closedInterval intersect openInterval must_== openInterval
+      openInterval intersect closedInterval must_== Some(openInterval)
+      closedInterval intersect openInterval must_== Some(openInterval)
     } ^
     "Is empty if the two intervals do not touch" ! {
-      ((open(0) to open(10)) intersect (open(10) to open(20))) must beEmpty
+      ((open(0) to open(10)) intersect (open(10) to open(20))) must beNone
     } ^
     "The union of two intervals" ^
       "Is a set containing both if the intervals are not connected" ! {
