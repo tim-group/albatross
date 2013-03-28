@@ -17,6 +17,9 @@ sealed class Interval[T](val lower: MaybeLowerBound[T], val upper: MaybeUpperBou
 
   def encloses(value: T): Boolean = lower.map(_.encloses(value)).getOrElse(true) && upper.map(_.encloses(value)).getOrElse(true)
 
+  def enclosesAll(values: Iterable[T])(implicit ord: Ordering[T]): Boolean =
+    encloses(values.min) && encloses(values.max)
+
   def enclosesBound(bound: Option[Bound[T]]): Boolean = bound.map(b => encloses(b.endpoint)).getOrElse(false)
 
   def enclosesInterval(other: Interval[T]): Boolean =
@@ -71,7 +74,7 @@ object Interval {
   def unapply[T](interval: Interval[T]) = Some((interval.lower, interval.upper))
 }
 
-sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
+sealed case class IntervalSet[T](intervals: Interval[T]*) {
   implicit val intervalOrder = (x: Interval[T], y: Interval[T]) =>
       if (x.lower == y.lower) (x.upper != y.upper && leastUpper(x.upper, y.upper) == x.upper)
       else (leastLower(x.lower, y.lower) == x.lower)
@@ -96,4 +99,27 @@ sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
       List(result.toSeq:_*)
     }
   }
+
+  def encloses(value: T): Boolean = coalesced.find(_.encloses(value)).isDefined
+
+  def enclosesAll(values: Iterable[T]): Boolean = values.forall(encloses(_))
+
+  def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet((coalesced ++ other.coalesced):_*)
+
+  def intersect(other: IntervalSet[T]): IntervalSet[T] =
+      IntervalSet((for {
+        left <- coalesced
+        right <- other.coalesced
+        intersection <- left intersect right
+      } yield intersection):_*)
+
+  def complement(other: IntervalSet[T]): IntervalSet[T] = {
+    val complements = coalesced.flatMap { interval =>
+      other.coalesced.foldLeft(Set(interval)) { (acc, other) =>
+        acc.flatMap(_ complement other)
+      }
+    }
+    IntervalSet(complements:_*)
+  }
+
 }
