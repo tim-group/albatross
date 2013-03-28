@@ -14,26 +14,20 @@ trait Bound[T] {
   def boundaryTest(value: T): Boolean
 
   def encloses(value: T): Boolean = outsideTest(value) && boundaryTest(value)
-
-  def innerMost(other: Bound[T]): Bound[T] =
-    if (!encloses(other.endpoint)) this else other
-
-  def outerMost(other: Bound[T]): Bound[T] =
-    if (encloses(other.endpoint)) this else other
 }
 
-trait UpperBound[T] { self: Bound[T] =>
+trait Upper[T] { self: Bound[T] =>
   override val isUpper = true
   override def outsideTest(value: T): Boolean = ordering.gteq(endpoint, value)
 
-  val inverse: Bound[T] with LowerBound[T]
+  val inverse: Bound[T] with Lower[T]
 }
 
-trait LowerBound[T] { self: Bound[T] =>
+trait Lower[T] { self: Bound[T] =>
   override val isUpper = false
   override def outsideTest(value: T): Boolean = ordering.lteq(endpoint, value)
 
-  val inverse: Bound[T] with UpperBound[T]
+  val inverse: Bound[T] with Upper[T]
 }
 
 trait ClosedBound[T] extends Bound[T] {
@@ -46,32 +40,47 @@ trait OpenBound[T] extends Bound[T] {
   override def boundaryTest(value: T) = ordering.compare(value, endpoint) != 0
 }
 
-sealed case class OpenUpperBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends OpenBound[T] with UpperBound[T] {
-  override lazy val inverse: Bound[T] with LowerBound[T] = ClosedLowerBound(endpoint)
+sealed case class OpenUpperBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends OpenBound[T] with Upper[T] {
+  override lazy val inverse: Bound[T] with Lower[T] = ClosedLowerBound(endpoint)
 }
 
-sealed case class ClosedUpperBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends ClosedBound[T] with UpperBound[T] {
-  override lazy val inverse: Bound[T] with LowerBound[T] = OpenLowerBound(endpoint)
+sealed case class ClosedUpperBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends ClosedBound[T] with Upper[T] {
+  override lazy val inverse: Bound[T] with Lower[T] = OpenLowerBound(endpoint)
 }
 
-sealed case class OpenLowerBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends OpenBound[T] with LowerBound[T] {
-  override lazy val inverse: Bound[T] with UpperBound[T] = ClosedUpperBound(endpoint)
+sealed case class OpenLowerBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends OpenBound[T] with Lower[T] {
+  override lazy val inverse: Bound[T] with Upper[T] = ClosedUpperBound(endpoint)
 }
 
-sealed case class ClosedLowerBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends ClosedBound[T] with LowerBound[T] {
-  override lazy val inverse: Bound[T] with UpperBound[T] = OpenUpperBound(endpoint)
+sealed case class ClosedLowerBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends ClosedBound[T] with Lower[T] {
+  override lazy val inverse: Bound[T] with Upper[T] = OpenUpperBound(endpoint)
 }
 
 object Bounds {
-  def innerMostLower[T](a: Option[Bound[T] with LowerBound[T]], b: Option[Bound[T] with LowerBound[T]]): Option[Bound[T] with LowerBound[T]] =
-    for { boundedA <- a; boundedB <- b } yield boundedA.innerMost(boundedB).asInstanceOf[Bound[T] with LowerBound[T]]
 
-  def innerMostUpper[T](a: Option[Bound[T] with UpperBound[T]], b: Option[Bound[T] with UpperBound[T]]): Option[Bound[T] with UpperBound[T]] =
-    for { boundedA <- a; boundedB <- b } yield boundedA.innerMost(boundedB).asInstanceOf[Bound[T] with UpperBound[T]]
+  type UpperBound[T] = Bound[T] with Upper[T]
+  type LowerBound[T] = Bound[T] with Lower[T]
+  type MaybeUpperBound[T] = Option[UpperBound[T]]
+  type MaybeLowerBound[T] = Option[LowerBound[T]]
 
-  def outerMostLower[T](a: Option[Bound[T] with LowerBound[T]], b: Option[Bound[T] with LowerBound[T]]): Option[Bound[T] with LowerBound[T]] =
-    for { boundedA <- a; boundedB <- b } yield boundedA.outerMost(boundedB).asInstanceOf[Bound[T] with LowerBound[T]]
+  def innerMost[T, B <: Bound[T]](a: Option[B], b: Option[B]): Option[B] =
+  (a, b) match {
+    case (Some(boundedA), Some(boundedB)) => if (boundedA encloses boundedB.endpoint) Some(boundedB) else Some(boundedA)
+    case (Some(_), None) => a
+    case (None, Some(_))    => b
+    case (None, None)    => None
+  }
 
-  def outerMostUpper[T](a: Option[Bound[T] with UpperBound[T]], b: Option[Bound[T] with UpperBound[T]]): Option[Bound[T] with UpperBound[T]] =
-    for { boundedA <- a; boundedB <- b } yield boundedA.outerMost(boundedB).asInstanceOf[Bound[T] with UpperBound[T]]
+  def outerMost[T, B <: Bound[T]](a: Option[B], b: Option[B]): Option[B] =
+    (a, b) match {
+      case (Some(boundedA), Some(boundedB)) => if (boundedA encloses boundedB.endpoint) Some(boundedA) else Some(boundedB)
+      case (Some(_), None) => b
+      case (None, Some(_)) => a
+      case (None, None)    => None
+    }
+
+  def greatestLower[T](a: MaybeLowerBound[T], b: MaybeLowerBound[T]): MaybeLowerBound[T] = innerMost[T, LowerBound[T]](a, b)
+  def leastUpper[T](a: MaybeUpperBound[T], b: MaybeUpperBound[T]): MaybeUpperBound[T] = innerMost[T, UpperBound[T]](a, b)
+  def leastLower[T](a: MaybeLowerBound[T], b: MaybeLowerBound[T]): MaybeLowerBound[T] = outerMost[T,  LowerBound[T]](a, b)
+  def greatestUpper[T](a: MaybeUpperBound[T], b: MaybeUpperBound[T]): MaybeUpperBound[T] = outerMost[T, UpperBound[T]](a, b)
 }

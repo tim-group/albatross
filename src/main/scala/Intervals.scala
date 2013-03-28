@@ -8,7 +8,7 @@ object Intervals {
   def unbounded[T]()(implicit ordering: Ordering[T]) = UnboundedBuilder[T]
 }
 
-sealed case class Interval[T](lower: Option[Bound[T] with LowerBound[T]], upper: Option[Bound[T] with UpperBound[T]]) {
+sealed case class Interval[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[T]) {
   val isEmpty = (for {
     boundedLower <- lower
     boundedUpper <- upper
@@ -27,11 +27,11 @@ sealed case class Interval[T](lower: Option[Bound[T] with LowerBound[T]], upper:
 
   def intersect(other: Interval[T]): Option[Interval[T]] =
     if (!connectedTo(other)) None
-    else Some(Interval(innerMostLower(lower, other.lower), innerMostUpper(upper, other.upper)))
+    else Some(Interval(greatestLower(lower, other.lower), leastUpper(upper, other.upper)))
 
   def union(other: Interval[T]): Set[Interval[T]] =
     if (other.isEmpty) Set(this)
-    else if (connectedTo(other)) Set(Interval(outerMostLower(lower, other.lower), outerMostUpper(upper, other.upper)))
+    else if (connectedTo(other)) Set(Interval(leastLower(lower, other.lower), greatestUpper(upper, other.upper)))
     else Set(this, other)
 
 
@@ -50,8 +50,8 @@ sealed case class Interval[T](lower: Option[Bound[T] with LowerBound[T]], upper:
 
 sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
   implicit val intervalOrder = (x: Interval[T], y: Interval[T]) =>
-      if (x.lower == y.lower) (x.upper != y.upper && innerMostUpper(x.upper, y.upper) == x.upper)
-      else (outerMostLower(x.lower, y.lower) == x.lower)
+      if (x.lower == y.lower) (x.upper != y.upper && leastUpper(x.upper, y.upper) == x.upper)
+      else (leastLower(x.lower, y.lower) == x.lower)
 
   lazy val coalesced: List[Interval[T]] = {
     val nonEmpty = intervals.filter(_.isEmpty == false)
@@ -64,7 +64,7 @@ sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
       while (iter.hasNext) {
         val right = iter.next()
         if (left connectedTo right)
-          left = Interval(outerMostLower(left.lower, right.lower), outerMostUpper(left.upper, right.upper))
+          left = Interval(leastLower(left.lower, right.lower), greatestUpper(left.upper, right.upper))
           else {
             result add left
             left = right

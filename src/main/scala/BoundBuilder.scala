@@ -1,8 +1,8 @@
 package com.youdevise.albatross
 
 trait BoundBuilder[T] {
-  def buildLower: Option[Bound[T] with LowerBound[T]]
-  def buildUpper: Option[Bound[T] with UpperBound[T]]
+  def buildLower: Option[Bound[T] with Lower[T]]
+  def buildUpper: Option[Bound[T] with Upper[T]]
   def to(upperBoundBuilder: BoundBuilder[T]) = Interval(buildLower, upperBoundBuilder.buildUpper)
 }
 
