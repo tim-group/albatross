@@ -12,6 +12,9 @@ class IntervalSpec extends Specification {
     "cannot be created if it encloses no points" ! {
       (open(0) to open(0)) must throwAn[IllegalArgumentException]
     } ^
+    "is a singleton if it encloses only one point" ! {
+      (closed(0) to closed(0)) must beASingleton
+    } ^
     "encloses any point within its bounds" ! {
       (open(10) to closed(20) must enclose(15)) and
         (unbounded[Int] to closed(20) must enclose(-1000)) and
@@ -25,6 +28,10 @@ class IntervalSpec extends Specification {
     } ^
     "encloses any interval whose bounds are within its own" ! {
       (open(-1) to open(11)) must encloseInterval (open(0) to open(10))
+    } ^
+    "does not enclose any interval either of whose bounds are outside its own" ! {
+      ((open(-1) to open(5)) must not(encloseInterval(open(0) to open(10)))) and
+        ((open(5) to open(11)) must not(encloseInterval(open(0) to open(10))))
     } ^ end ^
   bt ^
   "The intersection of two intervals" ^
@@ -61,8 +68,16 @@ class IntervalSpec extends Specification {
   "The complement of two intervals" ^
     "Is an empty set if the second encloses the first" ! {
       ((open(0) to open(10)) complement (open(-1) to open(11))) must_== Set.empty
+    } ^
+    "Is a singleton set containing the truncated first set if the second set overlaps the first" ! {
+      (((open(0) to open(10)) complement (open(5) to open(15))) must_== Set(open(0) to closed(5))) and
+        (((open(0) to open(10)) complement (open(-5) to open(5))) must_== Set(closed(5) to open(10)))
+    } ^
+    "Is a set containing a pair of separated intervals, if the first interval encloses the second" ! {
+      ((open(0) to open(10)) complement (closed(3) to closed(7))) must_== Set(open(0) to open(3), open(7) to open(10))
     } ^ end
 
+  def beASingleton[T]: Matcher[Interval[T]] = ((_: Interval[T]).isASingleton, "is not a singleton")
   def enclose[T](value: T): Matcher[Interval[T]] = ((_: Interval[T]).encloses(value), "doesn't enclose %s".format(value))
   def encloseInterval[T](other: Interval[T]): Matcher[Interval[T]] = ((_: Interval[T]).enclosesInterval(other), "doesn't enclose %s".format(other))
 }

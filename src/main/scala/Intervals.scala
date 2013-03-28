@@ -10,6 +10,11 @@ object Intervals {
 
 sealed class Interval[T](val lower: MaybeLowerBound[T], val upper: MaybeUpperBound[T]) {
 
+  val isASingleton: Boolean = (upper, lower) match {
+    case (Some(a), Some(b)) => a.isClosed && b.isClosed && a.endpoint == b.endpoint
+    case _ => false
+  }
+
   def encloses(value: T): Boolean = lower.map(_.encloses(value)).getOrElse(true) && upper.map(_.encloses(value)).getOrElse(true)
 
   def enclosesBound(bound: Option[Bound[T]]): Boolean = bound.map(b => encloses(b.endpoint)).getOrElse(false)
@@ -41,15 +46,19 @@ sealed class Interval[T](val lower: MaybeLowerBound[T], val upper: MaybeUpperBou
     else Set(Interval(other.upper.map(_.inverse), upper))
 
   override def toString: String = Interval.represent(lower, upper)
+
   override def equals(other: Any): Boolean = other match {
     case interval: Interval[T] => interval.lower == lower && interval.upper == upper
     case _ => false
   }
+
+  override def hashCode: Int = (lower, upper).hashCode()
 }
 
 object Interval {
 
   def represent[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[T]): String = "%s...%s".format(lower.map(_.toString).getOrElse("∞"), upper.map(_.toString).getOrElse("∞"))
+
   def apply[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[T]): Interval[T] = {
     val isEmpty = (for {
       boundedLower <- lower
@@ -58,6 +67,8 @@ object Interval {
     if (isEmpty) throw new IllegalArgumentException("An interval created with the bounds %s will be empty".format(represent(lower, upper)))
     new Interval(lower, upper)
   }
+
+  def unapply[T](interval: Interval[T]) = Some((interval.lower, interval.upper))
 }
 
 sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
@@ -74,12 +85,12 @@ sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
       val result = collection.mutable.LinkedHashSet[Interval[T]]()
       while (iter.hasNext) {
         val right = iter.next()
-        if (left connectedTo right)
+        if (left connectedTo right) {
           left = Interval(leastLower(left.lower, right.lower), greatestUpper(left.upper, right.upper))
-          else {
-            result add left
-            left = right
-          }
+        } else {
+          result add left
+          left = right
+        }
       }
       result add left
       List(result.toSeq:_*)
