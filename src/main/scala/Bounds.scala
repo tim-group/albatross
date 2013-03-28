@@ -42,18 +42,22 @@ trait OpenBound[T] extends Bound[T] {
 
 sealed case class OpenUpperBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends OpenBound[T] with Upper[T] {
   override lazy val inverse: Bound[T] with Lower[T] = ClosedLowerBound(endpoint)
+  override def toString: String = "%s)".format(endpoint)
 }
 
 sealed case class ClosedUpperBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends ClosedBound[T] with Upper[T] {
   override lazy val inverse: Bound[T] with Lower[T] = OpenLowerBound(endpoint)
+  override def toString: String = "%s]".format(endpoint)
 }
 
 sealed case class OpenLowerBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends OpenBound[T] with Lower[T] {
   override lazy val inverse: Bound[T] with Upper[T] = ClosedUpperBound(endpoint)
+  override def toString: String = "(%s".format(endpoint)
 }
 
 sealed case class ClosedLowerBound[T](endpoint: T)(implicit val ordering: Ordering[T]) extends ClosedBound[T] with Lower[T] {
   override lazy val inverse: Bound[T] with Upper[T] = OpenUpperBound(endpoint)
+  override def toString: String = "[%s".format(endpoint)
 }
 
 object Bounds {

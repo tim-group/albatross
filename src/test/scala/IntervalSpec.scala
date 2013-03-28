@@ -9,8 +9,8 @@ class IntervalSpec extends Specification {
 
   def is =
   "An interval" ^
-    "is empty if it encloses no points" ! {
-      open(0) to closed(0) must beEmpty
+    "cannot be created if it encloses no points" ! {
+      (open(0) to open(0)) must throwAn[IllegalArgumentException]
     } ^
     "encloses any point within its bounds" ! {
       (open(10) to closed(20) must enclose(15)) and
@@ -21,8 +21,10 @@ class IntervalSpec extends Specification {
     "does not enclose any point outside its bounds" ! {
       (open(10) to closed(20) must not(enclose(10))) and
         (unbounded[Int] to closed(20) must not(enclose(1000))) and
-        (closed(10) to unbounded[Int] must not(enclose(-1000))) and
-        (open(10) to open(10) must not(enclose(10)))
+        (closed(10) to unbounded[Int] must not(enclose(-1000)))
+    } ^
+    "encloses any interval whose bounds are within its own" ! {
+      (open(-1) to open(11)) must encloseInterval (open(0) to open(10))
     } ^ end ^
   bt ^
   "The intersection of two intervals" ^
@@ -46,14 +48,21 @@ class IntervalSpec extends Specification {
     } ^
     "Is empty if the two intervals do not touch" ! {
       ((open(0) to open(10)) intersect (open(10) to open(20))) must beNone
+    } ^ end ^
+  bt ^
+  "The union of two intervals" ^
+    "Is a set containing both if the intervals are not connected" ! {
+      ((open(0) to open(10)) union (open(10) to open(20))) must_== Set(open(0) to open(10), open(10) to open(20))
     } ^
-    "The union of two intervals" ^
-      "Is a set containing both if the intervals are not connected" ! {
-        ((open(0) to open(10)) union (open(10) to open(20))) must_== Set(open(0) to open(10), open(10) to open(20))
-      } ^
-      "Is a set containing a single combined interval if the intervals are connected" ! {
-        ((open(0) to closed(10)) union (closed(10) to open(20))) must_== Set(open(0) to open(20))
-      } ^ end
+    "Is a set containing a single combined interval if the intervals are connected" ! {
+      ((open(0) to closed(10)) union (closed(10) to open(20))) must_== Set(open(0) to open(20))
+    } ^ end ^
+  bt ^
+  "The complement of two intervals" ^
+    "Is an empty set if the second encloses the first" ! {
+      ((open(0) to open(10)) complement (open(-1) to open(11))) must_== Set.empty
+    } ^ end
 
   def enclose[T](value: T): Matcher[Interval[T]] = ((_: Interval[T]).encloses(value), "doesn't enclose %s".format(value))
+  def encloseInterval[T](other: Interval[T]): Matcher[Interval[T]] = ((_: Interval[T]).enclosesInterval(other), "doesn't enclose %s".format(other))
 }

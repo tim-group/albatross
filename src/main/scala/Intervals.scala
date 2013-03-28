@@ -8,21 +8,17 @@ object Intervals {
   def unbounded[T]()(implicit ordering: Ordering[T]) = UnboundedBuilder[T]
 }
 
-sealed case class Interval[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[T]) {
-  val isEmpty = (for {
-    boundedLower <- lower
-    boundedUpper <- upper
-  } yield !(boundedLower.encloses(boundedUpper.endpoint) && boundedUpper.encloses(boundedLower.endpoint))).getOrElse(false)
+sealed class Interval[T](val lower: MaybeLowerBound[T], val upper: MaybeUpperBound[T]) {
 
   def encloses(value: T): Boolean = lower.map(_.encloses(value)).getOrElse(true) && upper.map(_.encloses(value)).getOrElse(true)
 
   def enclosesBound(bound: Option[Bound[T]]): Boolean = bound.map(b => encloses(b.endpoint)).getOrElse(false)
 
-  def enclosesInterval(other: Interval[T]): Boolean = (this intersect other) == other
+  def enclosesInterval(other: Interval[T]): Boolean =
+    (leastLower(lower, other.lower) == this.lower) && (greatestUpper(upper, other.upper) == this.upper)
 
   def connectedTo(other: Interval[T]): Boolean =
-    if (other.isEmpty) false
-    else (this enclosesBound other.lower) || (this enclosesBound other.upper) ||
+    (this enclosesBound other.lower) || (this enclosesBound other.upper) ||
          (other enclosesBound lower) || (other enclosesBound upper)
 
   def intersect(other: Interval[T]): Option[Interval[T]] =
@@ -30,14 +26,12 @@ sealed case class Interval[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[
     else Some(Interval(greatestLower(lower, other.lower), leastUpper(upper, other.upper)))
 
   def union(other: Interval[T]): Set[Interval[T]] =
-    if (other.isEmpty) Set(this)
-    else if (connectedTo(other)) Set(Interval(leastLower(lower, other.lower), greatestUpper(upper, other.upper)))
+    if (connectedTo(other)) Set(Interval(leastLower(lower, other.lower), greatestUpper(upper, other.upper)))
     else Set(this, other)
 
 
   def complement(other: Interval[T]): Set[Interval[T]] =
-    if (other.isEmpty) Set(this)
-    else if (this == other) Set.empty[Interval[T]]
+    if (this == other) Set.empty[Interval[T]]
     else if (!connectedTo(other)) Set(this)
     else if (other enclosesInterval this) Set.empty[Interval[T]]
     else if (this enclosesInterval other) Set(
@@ -46,6 +40,24 @@ sealed case class Interval[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[
     else if (this enclosesBound other.lower) Set(Interval(lower, other.lower.map(_.inverse)))
     else Set(Interval(other.upper.map(_.inverse), upper))
 
+  override def toString: String = Interval.represent(lower, upper)
+  override def equals(other: Any): Boolean = other match {
+    case interval: Interval[T] => interval.lower == lower && interval.upper == upper
+    case _ => false
+  }
+}
+
+object Interval {
+
+  def represent[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[T]): String = "%s...%s".format(lower.map(_.toString).getOrElse("∞"), upper.map(_.toString).getOrElse("∞"))
+  def apply[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[T]): Interval[T] = {
+    val isEmpty = (for {
+      boundedLower <- lower
+      boundedUpper <- upper
+    } yield !(boundedLower.encloses(boundedUpper.endpoint) && boundedUpper.encloses(boundedLower.endpoint))).getOrElse(false)
+    if (isEmpty) throw new IllegalArgumentException("An interval created with the bounds %s will be empty".format(represent(lower, upper)))
+    new Interval(lower, upper)
+  }
 }
 
 sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
@@ -54,10 +66,9 @@ sealed case class IntervalSet[T](intervals: Set[Interval[T]]) {
       else (leastLower(x.lower, y.lower) == x.lower)
 
   lazy val coalesced: List[Interval[T]] = {
-    val nonEmpty = intervals.filter(_.isEmpty == false)
-    if (nonEmpty.size < 2) nonEmpty.toList
+    if (intervals.size < 2) intervals.toList
     else {
-      val ordered = nonEmpty.toList.sortWith(intervalOrder)
+      val ordered = intervals.toList.sortWith(intervalOrder)
       var left = ordered.head
       val iter = ordered.iterator.drop(1)
       val result = collection.mutable.LinkedHashSet[Interval[T]]()
