@@ -9,11 +9,17 @@ class DiscreteSpec extends Specification {
 
   def is =
   "A range in a discrete domain" ^
-    "has a lowest value" ! {
+    "has a lowest value if lower-bounded" ! {
       (open('a') to open('e')).lowestValue must_== 'b'
     } ^
-    "has a highest value" ! {
+    "has a highest value if upper-bounded" ! {
       (open('a') to open('e')).highestValue must_== 'd'
+    } ^
+    "has no lowest value if lower-unbounded" ! {
+      (unbounded[Char] to open('a')).lowestValue must throwAn[UnsupportedOperationException]
+    } ^
+    "has no highest value if upper-unbounded" ! {
+      (open('a') to unbounded[Char]).highestValue must throwAn[UnsupportedOperationException]
     } ^
     "can be streamed over" ! {
       (closed('a') to closed('e')).toStream.toList must_== List('a', 'b', 'c', 'd', 'e')
