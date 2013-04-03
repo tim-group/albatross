@@ -110,7 +110,7 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
       case (Nil, _) => intersections
       case (_, Nil) => intersections
       case (l :: ls, r :: rs) =>
-        println("checking %s against %s with intersections %s".format(l, r, intersections))
+        
         if (l enclosesInterval r) iterate(leftList, rs, r :: intersections)
         else if (r enclosesInterval l) iterate(ls, rightList, l :: intersections)
         else if (l connectedTo r)
