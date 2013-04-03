@@ -29,28 +29,32 @@ sealed class Interval[T](val lower: MaybeLowerBound[T], val upper: MaybeUpperBou
     (this enclosesBound other.lower) || (this enclosesBound other.upper) ||
          (other enclosesBound lower) || (other enclosesBound upper)
 
-  def intersect(other: Interval[T]): Option[Interval[T]] =
-    if (!connectedTo(other)) None
-    else Some(Interval(greatestLower(lower, other.lower), leastUpper(upper, other.upper)))
+  def intersect(other: Interval[T]): IntervalSet[T] =
+    if (!connectedTo(other)) IntervalSet()
+    else IntervalSet(Interval(greatestLower(lower, other.lower), leastUpper(upper, other.upper)))
+    
+  def intersect(other: IntervalSet[T]): IntervalSet[T] = other.intersect(this)
 
-  def union(other: Interval[T]): Set[Interval[T]] =
-    if (connectedTo(other)) Set(Interval(leastLower(lower, other.lower), greatestUpper(upper, other.upper)))
-    else Set(this, other)
+  def union(other: Interval[T]): IntervalSet[T] =
+    if (connectedTo(other)) IntervalSet(Interval(leastLower(lower, other.lower), greatestUpper(upper, other.upper)))
+    else IntervalSet(this, other)
+    
+  def union(other: IntervalSet[T]): IntervalSet[T] = other.union(this)
 
-  def complement(other: Interval[T]): Set[Interval[T]] =
-    if (this == other) Set.empty[Interval[T]]
-    else if (!connectedTo(other)) Set(this)
-    else if (other enclosesInterval this) Set.empty[Interval[T]]
-    else if (this enclosesInterval other) Set(
+  def complement(other: Interval[T]): IntervalSet[T] =
+    if (this == other) IntervalSet[T]()
+    else if (other enclosesInterval this) IntervalSet[T]()
+    else if (!connectedTo(other)) IntervalSet(this)    
+    else if (this enclosesInterval other) IntervalSet(
       Interval(lower, other.lower.map(_.inverse)),
       Interval(other.upper.map(_.inverse), upper))
-    else if (this enclosesBound other.lower) Set(Interval(lower, other.lower.map(_.inverse)))
-    else Set(Interval(other.upper.map(_.inverse), upper))
+    else if (this enclosesBound other.lower) IntervalSet(Interval(lower, other.lower.map(_.inverse)))
+    else IntervalSet(Interval(other.upper.map(_.inverse), upper))
 
   override def toString: String = Interval.represent(lower, upper)
 
   override def equals(other: Any): Boolean = other match {
-    case interval: Interval[T] => interval.lower == lower && interval.upper == upper
+    case Interval(otherLower, otherUpper) => otherLower == lower && otherUpper == upper
     case _ => false
   }
 
@@ -70,7 +74,7 @@ object Interval {
     new Interval(lower, upper)
   }
 
-  def unapply[T](interval: Interval[T]) = Some((interval.lower, interval.upper))
+  def unapply(interval: Interval[_]) = Some((interval.lower, interval.upper))
 }
 
 sealed case class IntervalSet[T](intervals: Interval[T]*) {
@@ -97,11 +101,13 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
 
   def enclosesAll(values: Iterable[T]): Boolean = values.forall(encloses(_))
 
+  def union(other: Interval[T]): IntervalSet[T] = IntervalSet((other :: intervals.toList):_*)
   def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet((coalesced ++ other.coalesced):_*)
   
+  def intersect(other: Interval[T]): IntervalSet[T] = IntervalSet((coalesced.flatMap(self => (self intersect other).intervals)):_*)
   def intersect(other: IntervalSet[T]): IntervalSet[T] = {
     def addIntersection(l: Interval[T], r: Interval[T], intersections: List[Interval[T]]) =
-      (l intersect r).map(_ :: intersections).getOrElse(intersections)
+      (l intersect r).intervals.headOption.map(_ :: intersections).getOrElse(intersections)
       
     def iterate(leftList: List[Interval[T]], rightList: List[Interval[T]], intersections: List[Interval[T]]): List[Interval[T]] =
       (leftList, rightList) match {
@@ -112,8 +118,7 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
           else if (r enclosesInterval l) iterate(ls, rightList, l :: intersections)
           else if (intervalOrder(l, r)) iterate(ls, rightList, addIntersection(l, r, intersections))
           else iterate(leftList, rs, addIntersection(l, r, intersections))
-      }
-    
+      }    
     
     IntervalSet(iterate(this.coalesced, other.coalesced, Nil):_*)
   }
@@ -121,7 +126,7 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
   def complement(other: IntervalSet[T]): IntervalSet[T] = {
     val complements = coalesced.flatMap { interval =>
       other.coalesced.foldLeft(Set(interval)) { (acc, other) =>
-        acc.flatMap(_ complement other)
+        acc.flatMap(self => (self complement other).intervals.toSet)
       }
     }
     IntervalSet(complements:_*)
