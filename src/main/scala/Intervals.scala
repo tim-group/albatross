@@ -37,6 +37,11 @@ sealed class Interval[T](val lower: MaybeLowerBound[T], val upper: MaybeUpperBou
     if (connectedTo(other)) Set(Interval(leastLower(lower, other.lower), greatestUpper(upper, other.upper)))
     else Set(this, other)
 
+  def leftOf(other: Interval[T]): Boolean = (upper, other.lower) match {
+      case (_, None) => false
+      case (None, _) => true
+      case (Some(a), Some(b)) => !b.encloses(a.endpoint)
+    }    
 
   def complement(other: Interval[T]): Set[Interval[T]] =
     if (this == other) Set.empty[Interval[T]]
@@ -80,7 +85,7 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
       else (leastLower(x.lower, y.lower) == x.lower)
 
   lazy val coalesced: List[Interval[T]] = {
-    val ordered = intervals.toList.sortWith(intervalOrder)
+    val ordered = intervals.toList.distinct.sortWith(intervalOrder)
     if (ordered.size < 2) ordered
     else {
       def coalesce(coalesced: List[Interval[T]], uncoalesced: List[Interval[T]], left: Interval[T]): List[Interval[T]] = uncoalesced match {
@@ -99,13 +104,23 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
   def enclosesAll(values: Iterable[T]): Boolean = values.forall(encloses(_))
 
   def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet((coalesced ++ other.coalesced):_*)
-
-  def intersect(other: IntervalSet[T]): IntervalSet[T] =
-      IntervalSet((for {
-        left <- coalesced
-        right <- other.coalesced
-        intersection <- left intersect right
-      } yield intersection):_*)
+  
+  def intersect(other: IntervalSet[T]): IntervalSet[T] = {
+    def iterate(leftList: List[Interval[T]], rightList: List[Interval[T]], intersections: List[Interval[T]]): List[Interval[T]] = (leftList, rightList) match {
+      case (Nil, _) => intersections
+      case (_, Nil) => intersections
+      case (l :: ls, r :: rs) =>
+        println("checking %s against %s with intersections %s".format(l, r, intersections))
+        if (l enclosesInterval r) iterate(leftList, rs, r :: intersections)
+        else if (r enclosesInterval l) iterate(ls, rightList, l :: intersections)
+        else if (l connectedTo r)
+          if (l enclosesBound r.lower) iterate(ls, rightList, (l intersect r).get :: intersections)
+          else iterate(leftList, rs, (l intersect r).get :: intersections)
+        else if (l leftOf r) iterate(ls, rightList, intersections)
+        else iterate(leftList, rs, intersections)
+    }
+    IntervalSet(iterate(this.coalesced, other.coalesced, Nil):_*)
+  }
 
   def complement(other: IntervalSet[T]): IntervalSet[T] = {
     val complements = coalesced.flatMap { interval =>
@@ -115,5 +130,7 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
     }
     IntervalSet(complements:_*)
   }
+  
+  override def toString: String = coalesced.map(_.toString).mkString(" ∪ ")
 
 }
