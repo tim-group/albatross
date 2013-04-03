@@ -80,23 +80,17 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
       else (leastLower(x.lower, y.lower) == x.lower)
 
   lazy val coalesced: List[Interval[T]] = {
-    if (intervals.size < 2) intervals.toList
+    val ordered = intervals.toList.sortWith(intervalOrder)
+    if (ordered.size < 2) ordered
     else {
-      val ordered = intervals.toList.sortWith(intervalOrder)
-      var left = ordered.head
-      val iter = ordered.iterator.drop(1)
-      val result = collection.mutable.LinkedHashSet[Interval[T]]()
-      while (iter.hasNext) {
-        val right = iter.next()
-        if (left connectedTo right) {
-          left = Interval(leastLower(left.lower, right.lower), greatestUpper(left.upper, right.upper))
-        } else {
-          result add left
-          left = right
-        }
+      def coalesce(coalesced: List[Interval[T]], uncoalesced: List[Interval[T]], left: Interval[T]): List[Interval[T]] = uncoalesced match {
+        case Nil => left :: coalesced
+        case right :: tail => if (left connectedTo right) 
+          coalesce(coalesced, tail, Interval(leastLower(left.lower, right.lower), greatestUpper(left.upper, right.upper)))
+          else coalesce(left :: coalesced, tail, right)
       }
-      result add left
-      List(result.toSeq:_*)
+      val reverseOrdered = coalesce(Nil, ordered.tail, ordered.head)
+      reverseOrdered.reverse
     }
   }
 
