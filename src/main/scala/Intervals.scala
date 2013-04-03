@@ -149,7 +149,7 @@ sealed case class NonEmptyContinuousInterval[T] private[albatross](lower: MaybeL
     else if (other.isContinuous) this unionNonEmptyContinuous other.nonEmptyContinuousSubIntervals.head
     else other union this
 
-  private[this] def complement(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
+  private def complementNonEmptyContinuous(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
     if (this == other) IntervalSet.empty
     else if (other enclosesInterval this) IntervalSet.empty
     else if (!connectedTo(other)) this 
@@ -160,7 +160,9 @@ sealed case class NonEmptyContinuousInterval[T] private[albatross](lower: MaybeL
     else NonEmptyContinuousInterval(other.upper.map(_.inverse), upper)
     
   override def complement(other: IntervalSet[T]): IntervalSet[T] =
-    other.nonEmptyContinuousSubIntervals.foldLeft(IntervalSet(this).asInstanceOf[IntervalSet[T]])(_ complement _)
+    IntervalSet(other.nonEmptyContinuousSubIntervals.foldLeft(List(this)) { (acc, nec) =>
+      acc.flatMap(_.complementNonEmptyContinuous(nec).nonEmptyContinuousSubIntervals.map(_.asInstanceOf[NonEmptyContinuousInterval[T]]))
+    })
 
   override def toString: String = NonEmptyContinuousInterval.represent(lower, upper)
 }
