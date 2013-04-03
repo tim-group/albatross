@@ -7,7 +7,7 @@ trait DiscreteDomain[T] {
   def previous(value: T): T
 }
 
-case class DiscreteInterval[T](interval: Interval[T], domain: DiscreteDomain[T]) {
+case class DiscreteInterval[T](interval: ContinuousInterval[T], domain: DiscreteDomain[T]) {
   def toStream: Stream[T] = {
     def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.next(value)))
     stream(lowestValue)
@@ -43,5 +43,5 @@ object Discrete {
     override def previous(value: Char) = (value.toInt - 1).toChar
   }
 
-  implicit def interval2DiscreteInterval[T](interval: Interval[T])(implicit domain: DiscreteDomain[T]) = DiscreteInterval(interval, domain)
+  implicit def interval2DiscreteInterval[T](interval: ContinuousInterval[T])(implicit domain: DiscreteDomain[T]) = DiscreteInterval(interval, domain)
 }
