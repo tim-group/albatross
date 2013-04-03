@@ -37,12 +37,6 @@ sealed class Interval[T](val lower: MaybeLowerBound[T], val upper: MaybeUpperBou
     if (connectedTo(other)) Set(Interval(leastLower(lower, other.lower), greatestUpper(upper, other.upper)))
     else Set(this, other)
 
-  def leftOf(other: Interval[T]): Boolean = (upper, other.lower) match {
-      case (_, None) => false
-      case (None, _) => true
-      case (Some(a), Some(b)) => !b.encloses(a.endpoint)
-    }    
-
   def complement(other: Interval[T]): Set[Interval[T]] =
     if (this == other) Set.empty[Interval[T]]
     else if (!connectedTo(other)) Set(this)
@@ -106,19 +100,21 @@ sealed case class IntervalSet[T](intervals: Interval[T]*) {
   def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet((coalesced ++ other.coalesced):_*)
   
   def intersect(other: IntervalSet[T]): IntervalSet[T] = {
-    def iterate(leftList: List[Interval[T]], rightList: List[Interval[T]], intersections: List[Interval[T]]): List[Interval[T]] = (leftList, rightList) match {
-      case (Nil, _) => intersections
-      case (_, Nil) => intersections
-      case (l :: ls, r :: rs) =>
-        
-        if (l enclosesInterval r) iterate(leftList, rs, r :: intersections)
-        else if (r enclosesInterval l) iterate(ls, rightList, l :: intersections)
-        else if (l connectedTo r)
-          if (l enclosesBound r.lower) iterate(ls, rightList, (l intersect r).get :: intersections)
-          else iterate(leftList, rs, (l intersect r).get :: intersections)
-        else if (l leftOf r) iterate(ls, rightList, intersections)
-        else iterate(leftList, rs, intersections)
-    }
+    def addIntersection(l: Interval[T], r: Interval[T], intersections: List[Interval[T]]) =
+      (l intersect r).map(_ :: intersections).getOrElse(intersections)
+      
+    def iterate(leftList: List[Interval[T]], rightList: List[Interval[T]], intersections: List[Interval[T]]): List[Interval[T]] =
+      (leftList, rightList) match {
+        case (Nil, _) => intersections
+        case (_, Nil) => intersections
+        case (l :: ls, r :: rs) =>        
+          if (l enclosesInterval r) iterate(leftList, rs, r :: intersections)
+          else if (r enclosesInterval l) iterate(ls, rightList, l :: intersections)
+          else if (intervalOrder(l, r)) iterate(ls, rightList, addIntersection(l, r, intersections))
+          else iterate(leftList, rs, addIntersection(l, r, intersections))
+      }
+    
+    
     IntervalSet(iterate(this.coalesced, other.coalesced, Nil):_*)
   }
 
