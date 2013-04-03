@@ -28,7 +28,7 @@ case class DiscreteInterval[T](intervalSet: IntervalSet[T], domain: DiscreteDoma
   }
 
   private def toReverseStream(interval: NonEmptyContinuousIntervalSet[T]): Stream[T] = {
-    def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.next(value)))
+    def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.previous(value)))
     stream(highestValue(interval))
   }
 
