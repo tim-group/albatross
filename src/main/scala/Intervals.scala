@@ -120,32 +120,33 @@ sealed case class NonEmptyContinuousInterval[T] private[albatross](lower: MaybeL
 
   override def enclosesBound(bound: Option[Bound[T]]): Boolean = bound.map(b => encloses(b.endpoint)).getOrElse(false)
 
-  private[this] def enclosesInterval(other: NonEmptyContinuousIntervalSet[T]): Boolean =
+  private[this] def enclosesNonEmptyContinuousInterval(other: NonEmptyContinuousIntervalSet[T]): Boolean =
     (leastLower(lower, other.lower) == this.lower) && (greatestUpper(upper, other.upper) == this.upper)
     
   override def enclosesInterval(other: IntervalSet[T]): Boolean =
-    other.nonEmptyContinuousSubIntervals.forall(enclosesInterval(_))
+    other.nonEmptyContinuousSubIntervals.forall(enclosesNonEmptyContinuousInterval(_))
 
-  private[this] def connectedTo(other: NonEmptyContinuousIntervalSet[T]): Boolean =
+  private[this] def connectedToNonEmptyContinuous(other: NonEmptyContinuousIntervalSet[T]): Boolean =
     (this enclosesBound other.lower) || (this enclosesBound other.upper) ||
          (other enclosesBound lower) || (other enclosesBound upper)
          
   override def connectedTo(other: IntervalSet[T]): Boolean =
-    other.nonEmptyContinuousSubIntervals.find(connectedTo(_)).isDefined
+    other.nonEmptyContinuousSubIntervals.find(connectedToNonEmptyContinuous(_)).isDefined
 
-  private[this] def intersect(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
+  private[this] def intersectNonEmptyContinuous(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
     if (!connectedTo(other)) IntervalSet(Iterable.empty)
     else NonEmptyContinuousInterval(greatestLower(lower, other.lower), leastUpper(upper, other.upper))
     
   override def intersect(other: IntervalSet[T]): IntervalSet[T] =
-    IntervalSet(other.nonEmptyContinuousSubIntervals.map(_ intersect this).flatMap(_.nonEmptyContinuousSubIntervals))
+    IntervalSet(other.nonEmptyContinuousSubIntervals.map(this intersectNonEmptyContinuous _).flatMap(_.nonEmptyContinuousSubIntervals))
 
-  private[this] def union(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
+  private[this] def unionNonEmptyContinuous(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
     if (connectedTo(other)) NonEmptyContinuousInterval(leastLower(lower, other.lower), greatestUpper(upper, other.upper))
     else IntervalSet(Seq(this, other))
     
   override def union(other: IntervalSet[T]): IntervalSet[T] =
-    if (other.isContinuous) this union other.nonEmptyContinuousSubIntervals.head
+    if (other.isEmpty) this
+    else if (other.isContinuous) this unionNonEmptyContinuous other.nonEmptyContinuousSubIntervals.head
     else other union this
 
   private[this] def complement(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
