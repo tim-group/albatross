@@ -3,7 +3,7 @@ package com.youdevise.albatross
 trait BoundBuilder[T] {
   def buildLower: Option[Bound[T] with Lower[T]]
   def buildUpper: Option[Bound[T] with Upper[T]]
-  def to(upperBoundBuilder: BoundBuilder[T]): ContinuousInterval[T] = Interval(buildLower, upperBoundBuilder.buildUpper)
+  def to(upperBoundBuilder: BoundBuilder[T]): Continuous[T] = IntervalSet(buildLower, upperBoundBuilder.buildUpper)
 }
 
 sealed case class OpenBoundBuilder[T](endpoint: T)(implicit ordering: Ordering[T]) extends BoundBuilder[T] {

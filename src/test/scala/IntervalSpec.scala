@@ -9,8 +9,8 @@ class IntervalSpec extends Specification {
 
   def is =
   "An interval" ^
-    "cannot be created if it encloses no points" ! {
-      (open(0) to open(0)) must throwAn[IllegalArgumentException]
+    "is empty if it encloses no points" ! {
+      (open(0) to open(0)) must beEmpty
     } ^
     "is a singleton if it encloses only one point" ! {
       (closed(0) to closed(0)) must beASingleton
@@ -59,7 +59,7 @@ class IntervalSpec extends Specification {
   bt ^
   "The union of two intervals" ^
     "Is a set containing both if the intervals are not connected" ! {
-      ((open(0) to open(10)) union (open(10) to open(20))) must_== Interval(open(0) to open(10), open(10) to open(20))
+      ((open(0) to open(10)) union (open(10) to open(20))) must_== IntervalSet(open(0) to open(10), open(10) to open(20))
     } ^
     "Is a set containing a single combined interval if the intervals are connected" ! {
       ((open(0) to closed(10)) union (closed(10) to open(20))) must_== (open(0) to open(20))
@@ -74,10 +74,10 @@ class IntervalSpec extends Specification {
         (((open(0) to open(10)) complement (open(-5) to open(5))) must_== (closed(5) to open(10)))
     } ^
     "Is a set containing a pair of separated intervals, if the first interval encloses the second" ! {
-      ((open(0) to open(10)) complement (closed(3) to closed(7))) must_== Interval(open(0) to open(3), open(7) to open(10))
+      ((open(0) to open(10)) complement (closed(3) to closed(7))) must_== IntervalSet(open(0) to open(3), open(7) to open(10))
     } ^ end
 
-  def beASingleton[T]: Matcher[ContinuousInterval[T]] = ((_: ContinuousInterval[T]).isASingleton, "is not a singleton")
-  def enclose[T](value: T): Matcher[ContinuousInterval[T]] = ((_: ContinuousInterval[T]).encloses(value), "doesn't enclose %s".format(value))
-  def encloseInterval[T](other: ContinuousInterval[T]): Matcher[ContinuousInterval[T]] = ((_: ContinuousInterval[T]).enclosesInterval(other), "doesn't enclose %s".format(other))
+  def beASingleton[T]: Matcher[IntervalSet[T]] = ((_: IntervalSet[T]).isASingleton, "is not a singleton")
+  def enclose[T](value: T): Matcher[IntervalSet[T]] = ((_: IntervalSet[T]).encloses(value), "doesn't enclose %s".format(value))
+  def encloseInterval[T](other: IntervalSet[T]): Matcher[IntervalSet[T]] = ((_: IntervalSet[T]).enclosesInterval(other), "doesn't enclose %s".format(other))
 }
