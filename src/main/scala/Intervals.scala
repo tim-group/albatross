@@ -46,6 +46,7 @@ object Interval {
     ContinuousInterval(lower, upper)
   }
   
+  def apply[T](continuousInterval: ContinuousInterval[T]): ContinuousInterval[T] = continuousInterval
   def apply[T](continuousIntervals: ContinuousInterval[T]*): Interval[T] = apply(continuousIntervals.toSeq)      
   def apply[T](continuousIntervals: Iterable[ContinuousInterval[T]]): Interval[T] = {
     val coalesced = coalesce(continuousIntervals)
@@ -129,7 +130,7 @@ sealed case class ContinuousInterval[T] private[albatross](lower: MaybeLowerBoun
     else ContinuousInterval(other.upper.map(_.inverse), upper)
     
   override def complement(other: Interval[T]): Interval[T] =
-    other.continuousSubIntervals.foldLeft(Interval(this))(_ complement _)
+    other.continuousSubIntervals.foldLeft(Interval(this).asInstanceOf[Interval[T]])(_ complement _)
 
   override def toString: String = ContinuousInterval.represent(lower, upper)
 }
