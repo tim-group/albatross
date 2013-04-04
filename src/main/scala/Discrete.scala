@@ -9,16 +9,24 @@ trait DiscreteDomain[T] {
 
 case class DiscreteInterval[T](intervalSet: IntervalSet[T], domain: DiscreteDomain[T]) {
   
-  def toSet: Set[T] = toStream.toSet
-  def toList: List[T] = toStream.toList
-  def toSeq: Seq[T] = toStream.toSeq
+  def toSet: Set[T] =
+    if (isBounded) toStream.toSet else throw new UnsupportedOperationException("Cannot convert unbounded interval to set")
+  def toList: List[T] =
+    if (isBounded) toStream.toList else throw new UnsupportedOperationException("Cannot convert unbounded interval to list")
+  def toSeq: Seq[T] =
+    if (isBounded) toStream.toSeq else throw new UnsupportedOperationException("Cannot convert unbounded interval to seq")
+
+  def isBounded = lowestValue.isDefined && highestValue.isDefined
   
   def toStream: Stream[T] =
     intervalSet.subIntervals.toStream.flatMap(toStream(_))
 
   private def toStream(interval: SubInterval[T]): Stream[T] = {
     def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.next(value)))
-    stream(lowestValue(interval))
+    lowestValue(interval) match {
+      case Some(value) => stream(value)
+      case None        => throw new UnsupportedOperationException("Cannot stream over interval with no lower bound")
+    }
   }
 
   def toReverseStream: Stream[T] =
@@ -26,26 +34,27 @@ case class DiscreteInterval[T](intervalSet: IntervalSet[T], domain: DiscreteDoma
 
   private def toReverseStream(interval: SubInterval[T]): Stream[T] = {
     def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.previous(value)))
-    stream(highestValue(interval))
+    highestValue(interval) match {
+      case Some(value) => stream(value)
+      case None        => throw new UnsupportedOperationException("Cannot reverse stream over interval with no upper bound")
+    }
   }
 
-  def lowestValue(interval: SubInterval[T]): T = {
-    if (interval.lower.isEmpty) throw new UnsupportedOperationException("Cannot find lowest value of unbounded interval %s".format(interval))
-    val lowerBound = interval.lower.get
-    if (lowerBound.isOpen) domain.next(lowerBound.endpoint) else lowerBound.endpoint
-  }
+  def lowestValue(interval: SubInterval[T]): Option[T] =
+    interval.lower.map(lowerBound =>
+      if (lowerBound.isOpen) domain.next(lowerBound.endpoint) else lowerBound.endpoint
+    )
 
-  def highestValue(interval: SubInterval[T]): T = {
-    if (interval.upper.isEmpty) throw new UnsupportedOperationException("Cannot find highest value of unbounded interval %s".format(interval))
-    val upperBound = interval.upper.get
-    if (upperBound.isOpen) domain.previous(upperBound.endpoint) else upperBound.endpoint
-  }
+  def highestValue(interval: SubInterval[T]): Option[T] =
+    interval.upper.map(upperBound =>
+      if (upperBound.isOpen) domain.previous(upperBound.endpoint) else upperBound.endpoint
+    )
 
   def lowestValue: Option[T] =
-    intervalSet.subIntervals.headOption.map(lowestValue _)
+    intervalSet.subIntervals.headOption.flatMap(lowestValue _)
 
   def highestValue: Option[T] =
-    intervalSet.subIntervals.lastOption.map(highestValue _)
+    intervalSet.subIntervals.lastOption.flatMap(highestValue _)
 }
 
 object Discrete {
