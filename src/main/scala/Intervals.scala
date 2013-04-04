@@ -112,8 +112,9 @@ object IntervalSet {
     }
 
     override def nonEmptyContinuousSubIntervals: SubIntervals[T] = List(this)
-    override def apply(value: T): Boolean = encloses(value)
-    override def encloses(value: T): Boolean = lower.map(_.encloses(value)).getOrElse(true) && upper.map(_.encloses(value)).getOrElse(true)
+
+    override def encloses(value: T): Boolean =
+      lower.map(_.encloses(value)).getOrElse(true) && upper.map(_.encloses(value)).getOrElse(true)
 
     override def enclosesAll(values: Iterable[T])(implicit ord: Ordering[T]): Boolean =
       encloses(values.min) && encloses(values.max)
