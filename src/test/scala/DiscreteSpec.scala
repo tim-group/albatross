@@ -10,10 +10,10 @@ class DiscreteSpec extends Specification {
   def is =
   "A range in a discrete domain" ^
     "has a lowest value if lower-bounded" ! {
-      (open('a') to open('e')).lowestValue must_== 'b'
+      (open('a') to open('e')).lowestValue must beSome('b')
     } ^
     "has a highest value if upper-bounded" ! {
-      (open('a') to open('e')).highestValue must_== 'd'
+      (open('a') to open('e')).highestValue must beSome('d')
     } ^
     "has no lowest value if lower-unbounded" ! {
       (unbounded[Char] to open('a')).lowestValue must throwAn[UnsupportedOperationException]

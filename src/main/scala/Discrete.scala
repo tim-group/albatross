@@ -8,24 +8,16 @@ trait DiscreteDomain[T] {
 }
 
 case class DiscreteInterval[T](intervalSet: IntervalSet[T], domain: DiscreteDomain[T]) {
-  def toStream: Stream[T] = {
-    intervalSet.nonEmptyOption match {
-      case Some(nonEmpty) => nonEmpty.nonEmptyContinuousSubIntervals.toStream.flatMap(toStream(_))
-      case None => Stream.empty
-    }
-  }
+  def toStream: Stream[T] =
+    intervalSet.nonEmptyContinuousSubIntervals.toStream.flatMap(toStream(_))
 
   private def toStream(interval: NonEmptyContinuousIntervalSet[T]): Stream[T] = {
     def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.next(value)))
     stream(lowestValue(interval))
   }
 
-  def toReverseStream: Stream[T] = {
-    intervalSet.nonEmptyOption match {
-      case Some(nonEmpty) => nonEmpty.nonEmptyContinuousSubIntervals.reverse.toStream.flatMap(toReverseStream(_))
-      case None => Stream.empty
-    }
-  }
+  def toReverseStream: Stream[T] =
+    intervalSet.nonEmptyContinuousSubIntervals.reverse.toStream.flatMap(toReverseStream(_))
 
   private def toReverseStream(interval: NonEmptyContinuousIntervalSet[T]): Stream[T] = {
     def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.previous(value)))
@@ -44,19 +36,11 @@ case class DiscreteInterval[T](intervalSet: IntervalSet[T], domain: DiscreteDoma
     if (upperBound.isOpen) domain.previous(upperBound.endpoint) else upperBound.endpoint
   }
 
-  def lowestValue: T = {
-    intervalSet.nonEmptyOption match {
-      case Some(nonEmpty) => lowestValue(nonEmpty.nonEmptyContinuousSubIntervals.head)
-      case None => throw new UnsupportedOperationException("Cannot find lowest value of empty interval")
-    }
-  }
+  def lowestValue: Option[T] =
+    intervalSet.nonEmptyContinuousSubIntervals.headOption.map(lowestValue _)
 
-  def highestValue: T = {
-    intervalSet.nonEmptyOption match {
-      case Some(nonEmpty) => highestValue(nonEmpty.nonEmptyContinuousSubIntervals.last)
-      case None => throw new UnsupportedOperationException("Cannot find highest value of empty interval")
-    }
-  }
+  def highestValue: Option[T] =
+    intervalSet.nonEmptyContinuousSubIntervals.lastOption.map(highestValue _)
 }
 
 object Discrete {
