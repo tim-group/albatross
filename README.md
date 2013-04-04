@@ -1,8 +1,5 @@
 albatross
-
 =========
-
-
 
 ```scala
 package com.youdevise.albatross
