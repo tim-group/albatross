@@ -12,7 +12,7 @@ trait IntervalSet[T] extends Function[T, Boolean] {
   def isEmpty: Boolean
   def isContinuous: Boolean
   def isASingleton: Boolean
-  def nonEmptyContinuousSubIntervals: List[NonEmptyContinuousIntervalSet[T]]
+  def subIntervals: List[SubInterval[T]]
 
   def encloses(value: T): Boolean
   override def apply(value: T): Boolean = encloses(value)
@@ -35,11 +35,11 @@ trait Continuous[T] extends IntervalSet[T] {
   override def isContinuous = true
 }
 
-trait NonEmptyContinuousIntervalSet[T] extends NonEmpty[T] with Continuous[T] {}
+trait SubInterval[T] extends NonEmpty[T] with Continuous[T] {}
 
 object IntervalSet {
 
-  type SubIntervals[T] = List[NonEmptyContinuousIntervalSet[T]]
+  type SubIntervals[T] = List[SubInterval[T]]
   
   implicit def intervalOrder[T] = (x: NonEmpty[T], y: NonEmpty[T]) =>
     if (x.lower == y.lower) (x.upper != y.upper && leastUpper(x.upper, y.upper) == x.upper)
@@ -60,7 +60,7 @@ object IntervalSet {
 
   def apply[T](intervalSets: IntervalSet[T]*): IntervalSet[T] = apply(intervalSets.toList)
   def apply[T](intervalSets: Iterable[IntervalSet[T]]): IntervalSet[T] = {
-    val nonEmpty = intervalSets.toList.flatMap(_.nonEmptyContinuousSubIntervals).distinct
+    val nonEmpty = intervalSets.toList.flatMap(_.subIntervals).distinct
     if (nonEmpty.isEmpty) empty[T]
     else {
       val coalesced = coalesce(nonEmpty)
@@ -75,7 +75,7 @@ object IntervalSet {
     else {
       def coalesce(coalesced: SubIntervals[T],
                    uncoalesced: SubIntervals[T],
-                   left: NonEmptyContinuousIntervalSet[T]): SubIntervals[T] =
+                   left: SubInterval[T]): SubIntervals[T] =
         uncoalesced match {
           case Nil => left :: coalesced
           case right :: tail => if (left connectedTo right)
@@ -90,7 +90,7 @@ object IntervalSet {
   private sealed case class EmptyInterval[T]() extends IntervalSet[T] with Continuous[T] {
     override def isEmpty = true
     override def isASingleton = false
-    override def nonEmptyContinuousSubIntervals: SubIntervals[T] = List.empty
+    override def subIntervals: SubIntervals[T] = List.empty
 
     override def encloses(value: T): Boolean = false
     override def enclosesAll(values: Iterable[T])(implicit ord: Ordering[T]): Boolean = false
@@ -104,14 +104,14 @@ object IntervalSet {
   }
 
   private sealed case class NonEmptyContinuousInterval[T](lower: MaybeLowerBound[T], upper: MaybeUpperBound[T])
-    extends NonEmptyContinuousIntervalSet[T] {
+    extends SubInterval[T] {
 
     override val isASingleton: Boolean = (upper, lower) match {
       case (Some(a), Some(b)) => a.isClosed && b.isClosed && a.endpoint == b.endpoint
       case _ => false
     }
 
-    override def nonEmptyContinuousSubIntervals: SubIntervals[T] = List(this)
+    override def subIntervals: SubIntervals[T] = List(this)
 
     override def encloses(value: T): Boolean =
       lower.map(_.encloses(value)).getOrElse(true) && upper.map(_.encloses(value)).getOrElse(true)
@@ -120,24 +120,24 @@ object IntervalSet {
       encloses(values.min) && encloses(values.max)
 
     override def enclosesInterval(other: IntervalSet[T]): Boolean =
-      other.nonEmptyContinuousSubIntervals.forall(nec =>
+      other.subIntervals.forall(nec =>
         (leastLower(lower, nec.lower) == this.lower) && (greatestUpper(upper, nec.upper) == this.upper))
 
     private[this] def enclosesBound(intervalSet: IntervalSet[T], bound: Option[Bound[T]]): Boolean =
       bound.map(intervalSet encloses _.endpoint).getOrElse(false)
 
     override def connectedTo(other: IntervalSet[T]): Boolean =
-      other.nonEmptyContinuousSubIntervals.find(nec =>
+      other.subIntervals.find(nec =>
         (enclosesBound(this, nec.lower)) || (enclosesBound(this, nec.upper)) ||
           (enclosesBound(nec, lower)) || (enclosesBound(nec, upper))).isDefined
 
     override def intersect(other: IntervalSet[T]): IntervalSet[T] =
-      IntervalSet(other.nonEmptyContinuousSubIntervals.map(nec =>
-        IntervalSet(greatestLower(lower, nec.lower), leastUpper(upper, nec.upper))).flatMap(_.nonEmptyContinuousSubIntervals))
+      IntervalSet(other.subIntervals.map(nec =>
+        IntervalSet(greatestLower(lower, nec.lower), leastUpper(upper, nec.upper))).flatMap(_.subIntervals))
 
-    override def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet(this :: other.nonEmptyContinuousSubIntervals)
+    override def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet(this :: other.subIntervals)
 
-    private def complementNonEmptyContinuous(other: NonEmptyContinuousIntervalSet[T]): IntervalSet[T] =
+    private def complementNonEmptyContinuous(other: SubInterval[T]): IntervalSet[T] =
       if (this == other) IntervalSet.empty
       else if (other enclosesInterval this) IntervalSet.empty
       else if (!connectedTo(other)) this
@@ -148,39 +148,39 @@ object IntervalSet {
       else NonEmptyContinuousInterval(other.upper.map(_.inverse), upper)
 
     override def complement(other: IntervalSet[T]): IntervalSet[T] =
-      IntervalSet(other.nonEmptyContinuousSubIntervals.foldLeft(List(this)) { (acc, nec) =>
-        acc.flatMap(_.complementNonEmptyContinuous(nec).nonEmptyContinuousSubIntervals.map(_.asInstanceOf[NonEmptyContinuousInterval[T]]))
+      IntervalSet(other.subIntervals.foldLeft(List(this)) { (acc, nec) =>
+        acc.flatMap(_.complementNonEmptyContinuous(nec).subIntervals.map(_.asInstanceOf[NonEmptyContinuousInterval[T]]))
       })
 
     override def toString: String = "%s...%s".format(lower.map(_.toString).getOrElse("\u221e"), upper.map(_.toString).getOrElse("\u221e"))
   }
 
-  private sealed case class DiscontinuousIntervalSet[T](nonEmptyContinuousSubIntervals: SubIntervals[T])
+  private sealed case class DiscontinuousIntervalSet[T](subIntervals: SubIntervals[T])
     extends IntervalSet[T] with NonEmpty[T] {
     override def isASingleton = false
     override val isContinuous: Boolean = false
 
-    override val lower = nonEmptyContinuousSubIntervals.head.lower
-    override val upper = nonEmptyContinuousSubIntervals.last.upper
+    override val lower = subIntervals.head.lower
+    override val upper = subIntervals.last.upper
 
-    override def encloses(value: T): Boolean = nonEmptyContinuousSubIntervals.find(_.encloses(value)).isDefined
+    override def encloses(value: T): Boolean = subIntervals.find(_.encloses(value)).isDefined
     override def enclosesAll(values: Iterable[T])(implicit ord: Ordering[T]): Boolean = values.forall(encloses(_))
 
     override def enclosesInterval(other: IntervalSet[T]): Boolean =
       (this intersect other) == other
 
     override def connectedTo(other: IntervalSet[T]): Boolean =
-      other.nonEmptyContinuousSubIntervals.find(otherSubInterval =>
-        nonEmptyContinuousSubIntervals.find(_.connectedTo(otherSubInterval)).isDefined
+      other.subIntervals.find(otherSubInterval =>
+        subIntervals.find(_.connectedTo(otherSubInterval)).isDefined
       ).isDefined
 
-    override def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet(nonEmptyContinuousSubIntervals ++ other.nonEmptyContinuousSubIntervals)
+    override def union(other: IntervalSet[T]): IntervalSet[T] = IntervalSet(subIntervals ++ other.subIntervals)
 
     override def intersect(other: IntervalSet[T]): IntervalSet[T] = {
-      def addIntersection(l: NonEmptyContinuousIntervalSet[T],
-                          r: NonEmptyContinuousIntervalSet[T],
+      def addIntersection(l: SubInterval[T],
+                          r: SubInterval[T],
                           intersections: SubIntervals[T]) =
-        (l intersect r).nonEmptyContinuousSubIntervals.headOption.map(_ :: intersections).getOrElse(intersections)
+        (l intersect r).subIntervals.headOption.map(_ :: intersections).getOrElse(intersections)
 
       def iterate(leftList: SubIntervals[T],
                   rightList: SubIntervals[T],
@@ -195,19 +195,19 @@ object IntervalSet {
             else iterate(leftList, rs, addIntersection(l, r, intersections))
         }
 
-      IntervalSet(iterate(nonEmptyContinuousSubIntervals, other.nonEmptyContinuousSubIntervals, Nil))
+      IntervalSet(iterate(subIntervals, other.subIntervals, Nil))
     }
 
     override def complement(other: IntervalSet[T]): IntervalSet[T] = {
-      val complements = nonEmptyContinuousSubIntervals.flatMap { interval =>
-        other.nonEmptyContinuousSubIntervals.foldLeft(List(interval)) { (acc, otherC) =>
-          acc.flatMap(a => (a complement otherC).nonEmptyContinuousSubIntervals)
+      val complements = subIntervals.flatMap { interval =>
+        other.subIntervals.foldLeft(List(interval)) { (acc, otherC) =>
+          acc.flatMap(a => (a complement otherC).subIntervals)
         }
       }
       IntervalSet(complements)
     }
 
-    override def toString: String = nonEmptyContinuousSubIntervals.map(_.toString).mkString(" \u221a ")
+    override def toString: String = subIntervals.map(_.toString).mkString(" \u221a ")
 
   }
 }

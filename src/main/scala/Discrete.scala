@@ -9,38 +9,38 @@ trait DiscreteDomain[T] {
 
 case class DiscreteInterval[T](intervalSet: IntervalSet[T], domain: DiscreteDomain[T]) {
   def toStream: Stream[T] =
-    intervalSet.nonEmptyContinuousSubIntervals.toStream.flatMap(toStream(_))
+    intervalSet.subIntervals.toStream.flatMap(toStream(_))
 
-  private def toStream(interval: NonEmptyContinuousIntervalSet[T]): Stream[T] = {
+  private def toStream(interval: SubInterval[T]): Stream[T] = {
     def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.next(value)))
     stream(lowestValue(interval))
   }
 
   def toReverseStream: Stream[T] =
-    intervalSet.nonEmptyContinuousSubIntervals.reverse.toStream.flatMap(toReverseStream(_))
+    intervalSet.subIntervals.reverse.toStream.flatMap(toReverseStream(_))
 
-  private def toReverseStream(interval: NonEmptyContinuousIntervalSet[T]): Stream[T] = {
+  private def toReverseStream(interval: SubInterval[T]): Stream[T] = {
     def stream(value: T): Stream[T] = if (!interval.encloses(value)) Stream.empty else cons(value, stream(domain.previous(value)))
     stream(highestValue(interval))
   }
 
-  def lowestValue(interval: NonEmptyContinuousIntervalSet[T]): T = {
+  def lowestValue(interval: SubInterval[T]): T = {
     if (interval.lower.isEmpty) throw new UnsupportedOperationException("Cannot find lowest value of unbounded interval %s".format(interval))
     val lowerBound = interval.lower.get
     if (lowerBound.isOpen) domain.next(lowerBound.endpoint) else lowerBound.endpoint
   }
 
-  def highestValue(interval: NonEmptyContinuousIntervalSet[T]): T = {
+  def highestValue(interval: SubInterval[T]): T = {
     if (interval.upper.isEmpty) throw new UnsupportedOperationException("Cannot find highest value of unbounded interval %s".format(interval))
     val upperBound = interval.upper.get
     if (upperBound.isOpen) domain.previous(upperBound.endpoint) else upperBound.endpoint
   }
 
   def lowestValue: Option[T] =
-    intervalSet.nonEmptyContinuousSubIntervals.headOption.map(lowestValue _)
+    intervalSet.subIntervals.headOption.map(lowestValue _)
 
   def highestValue: Option[T] =
-    intervalSet.nonEmptyContinuousSubIntervals.lastOption.map(highestValue _)
+    intervalSet.subIntervals.lastOption.map(highestValue _)
 }
 
 object Discrete {
