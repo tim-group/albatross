@@ -2,7 +2,7 @@ package com.youdevise.example
 
 import scala.util.control.Exception.allCatch
 import com.youdevise.albatross.IntervalSet
-import com.youdevise.albatross.Intervals.{open, closed, unbounded}
+import com.youdevise.albatross.Intervals._
 import com.youdevise.albatross.Discrete.{IntDomain, CharDomain, intervalSet2DiscreteInterval}
 
 object IntervalSetWorksheet {
@@ -27,8 +27,8 @@ object IntervalSetWorksheet {
   unbounded[Int] to open(0)                       //> res2: com.youdevise.albatross.Continuous[Int] = ?...0)
   
   allCatch either { (unbounded[Int] to open(0)).toList }
-                                                  //> res3: scala.util.Either[Throwable,List[Int]] = Left(java.lang.UnsupportedOp
-                                                  //| erationException: Cannot convert unbounded interval to list)
+                                                  //> res3: scala.util.Either[Throwable,List[Int]] = Left(java.lang.UnsupportedOpe
+                                                  //| rationException: Cannot convert unbounded interval to list)
   
   /*
   * Unbounded intervals in discrete domains can be streamed.

@@ -16,10 +16,10 @@ class DiscreteSpec extends Specification {
       (open('a') to open('e')).highestValue must beSome('d')
     } ^
     "has no lowest value if lower-unbounded" ! {
-      (unbounded[Char] to open('a')).lowestValue must throwAn[UnsupportedOperationException]
+      (unbounded[Char] to open('a')).lowestValue must beNone
     } ^
     "has no highest value if upper-unbounded" ! {
-      (open('a') to unbounded[Char]).highestValue must throwAn[UnsupportedOperationException]
+      (open('a') to unbounded[Char]).highestValue must beNone
     } ^
     "can be streamed over" ! {
       (closed('a') to closed('e')).toStream.toList must_== List('a', 'b', 'c', 'd', 'e')
