@@ -8,6 +8,11 @@ trait DiscreteDomain[T] {
 }
 
 case class DiscreteInterval[T](intervalSet: IntervalSet[T], domain: DiscreteDomain[T]) {
+  
+  def toSet: Set[T] = toStream.toSet
+  def toList: List[T] = toStream.toList
+  def toSeq: Seq[T] = toStream.toSeq
+  
   def toStream: Stream[T] =
     intervalSet.subIntervals.toStream.flatMap(toStream(_))
 

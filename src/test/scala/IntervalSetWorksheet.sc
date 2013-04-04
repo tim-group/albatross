@@ -5,39 +5,73 @@ import Bounds._
 import Discrete._
 
 object IntervalSetWorksheet {
-  unbounded[Int] to unbounded[Int]                //> res0: com.youdevise.albatross.Continuous[Int] = ?...?
-  open(0) to open(1)                              //> res1: com.youdevise.albatross.Continuous[Int] = (0...1)
-  IntervalSet(open(0) to open(1))                 //> res2: com.youdevise.albatross.IntervalSet[Int] = (0...1)
+  /*
+  * An interval set is a set defined as all of the values lying between two bounds - for example,
+  * all the integers from 1 to 10 inclusive.
+  */
+  closed(1) to closed(10)                         //> res0: com.youdevise.albatross.Continuous[Int] = [1...10]
   
-	val is = (open(0) to open(10)) union (open(20) to open(30)) union (open(25) to open(34))
-                                                  //> is  : com.youdevise.albatross.IntervalSet[Int] = (0...10) ? (20...34)
-
-  // Intersection
-	is intersect (open(5) to open(24))        //> res3: com.youdevise.albatross.IntervalSet[Int] = (5...10) ? (20...24)
-                                                  
-  IntervalSet(open(0) to open(1), open(4) to open(8), open(10) to open(11), open(14) to open(16)) intersect IntervalSet(open(2) to open(3), open(3) to open(5), open(6) to open(7), open(9) to open(15))
-                                                  //> res4: com.youdevise.albatross.IntervalSet[Int] = (4...5) ? (6...7) ? (10...1
-                                                  //| 1) ? (14...15)
-                                                  
-  // Unions
-  is union (open(3) to open(21))                  //> res5: com.youdevise.albatross.IntervalSet[Int] = (0...34)
+  /*
+  * The bounds of an interval set may be closed, in which case the set includes the bounding value,
+  * or open, in which case it does not.
+  *
+  * If the domain of the interval set is discrete, we can list out the items contained in the set.
+  */
+  (closed(1) to open(10)).toList                  //> res1: List[Int] = List(1, 2, 3, 4, 5, 6, 7, 8, 9)
   
-  // Intersection and union
-  (open(0) to open(10)) intersect (open(2) to open(3)) union (open(7) to open(8))
-                                                  //> res6: com.youdevise.albatross.IntervalSet[Int] = (2...3) ? (7...8)
-  ((open(0) to open(10)) intersect (open(2) to open(3))) union (open(7) to open(8))
-                                                  //> res7: com.youdevise.albatross.IntervalSet[Int] = (2...3) ? (7...8)
-  (open(0) to open(10)) intersect ((open(2) to open(3)) union (open(7) to open(8)))
-                                                  //> res8: com.youdevise.albatross.IntervalSet[Int] = (2...3) ? (7...8)
+  /*
+  * An interval set may be unbounded at either its lower or its upper bound.
+  * The following contains all the negative integers:
+  */
+  unbounded[Int] to open(0)                       //> res2: com.youdevise.albatross.Continuous[Int] = ?...0)
+  
+  /*
+  * Unbounded intervals in discrete domains can be streamed.
+  */
+  val s = (unbounded[Int] to open(0)).toReverseStream
+                                                  //> s  : Stream[Int] = Stream(-1, ?)
+  s.take(5).toList                                //> res3: List[Int] = List(-1, -2, -3, -4, -5)
+  
+  /*
+  * An interval set can be used to test whether or not a value is in the set.
+  */
+  (closed('a') to closed('z')).encloses('q')      //> res4: Boolean = true
+  (closed('a') to closed('m')).encloses('q')      //> res5: Boolean = false
+  
+  (closed("apple") to closed("metallurgy")).encloses("metallic")
+                                                  //> res6: Boolean = true
+  (closed("apple") to closed("metallurgy")).encloses("metaphorical")
+                                                  //> res7: Boolean = false
+  
+  /*
+  * An interval set may not be continuous; parts of the range between the lower and upper bounds
+  * may be missing.
+  */
+  ((closed(1) to closed(3)) union (closed(7) to closed(9))).toList
+                                                  //> res8: List[Int] = List(1, 2, 3, 7, 8, 9)
+  ((closed(1) to closed(10)) complement (closed(3) to closed(7))).toList
+                                                  //> res9: List[Int] = List(1, 2, 8, 9, 10)
                                                   
-  // Enclosure
-  is enclosesInterval (open(2) to open(3))        //> res9: Boolean = true
-  is enclosesInterval IntervalSet(open(2) to open(3), open(21) to open(25))
-                                                  //> res10: Boolean = true
+  /*
+  * An interval set may even be empty, if it encloses no values.
+  */
+  (open(0) to open(0)).isEmpty                    //> res10: Boolean = true
+  ((closed(1) to closed(10)) intersect (closed(-10) to closed(-1))).isEmpty
+                                                  //> res11: Boolean = true
                                                   
-  // Discreteness
-  ((closed('a') to closed('z')) complement (closed('f') to closed('q'))).toStream.toList
-                                                  //> res11: List[Char] = List(a, b, c, d, e, r, s, t, u, v, w, x, y, z)
+  /*
+  * We can test to see whether one interval set encloses another.
+  */
+  val a = IntervalSet(open(0) to open(10), open(20) to open(30))
+                                                  //> a  : com.youdevise.albatross.IntervalSet[Int] = (0...10) ? (20...30)
+  a enclosesInterval (open(5) to open(9))         //> res12: Boolean = true
+  a enclosesInterval (open(5) to open(15))        //> res13: Boolean = false
+  a enclosesInterval IntervalSet(open(5) to open(9), open(23) to open(29))
+                                                  //> res14: Boolean = true
                                                   
-                        
+  /*
+  * An interval can be used as a predicate for a filter
+  */
+  Seq(1.0, 2.3, 3.5, 4.2, 5.7).filter(open(2.2) to open(4.2))
+                                                  //> res15: Seq[Double] = List(2.3, 3.5)
 }
