@@ -3,9 +3,10 @@ package com.youdevise.albatross
 import Bounds._
 
 object Intervals {
-  def open[T](endpoint: T)(implicit ordering: Ordering[T]) = OpenBoundBuilder[T](endpoint)
-  def closed[T](endpoint: T)(implicit ordering: Ordering[T]) = ClosedBoundBuilder[T](endpoint)
-  def unbounded[T]()(implicit ordering: Ordering[T]) = UnboundedBuilder[T]
+  def open2Open[T](lower: T, upper: T)(implicit ord: Ordering[T]): Continuous[T] = open(lower) to open(upper)
+  def closed2Closed[T](lower: T, upper: T)(implicit ord: Ordering[T]): Continuous[T] = closed(lower) to closed(upper)
+  def open2Closed[T](lower: T, upper: T)(implicit ord: Ordering[T]): Continuous[T] = open(lower) to closed(upper)
+  def closed2Open[T](lower: T, upper: T)(implicit ord: Ordering[T]): Continuous[T] = closed(lower) to open(upper)
 }
 
 trait IntervalSet[T] extends Function[T, Boolean] {

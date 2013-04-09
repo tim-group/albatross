@@ -87,4 +87,8 @@ object Bounds {
   def leastUpper[T](a: MaybeUpperBound[T], b: MaybeUpperBound[T]): MaybeUpperBound[T] = innerMost[T, UpperBound[T]](a, b)
   def leastLower[T](a: MaybeLowerBound[T], b: MaybeLowerBound[T]): MaybeLowerBound[T] = outerMost[T,  LowerBound[T]](a, b)
   def greatestUpper[T](a: MaybeUpperBound[T], b: MaybeUpperBound[T]): MaybeUpperBound[T] = outerMost[T, UpperBound[T]](a, b)
+  
+  def open[T](endpoint: T)(implicit ordering: Ordering[T]): OpenBoundBuilder[T] = OpenBoundBuilder[T](endpoint)
+  def closed[T](endpoint: T)(implicit ordering: Ordering[T]): ClosedBoundBuilder[T] = ClosedBoundBuilder[T](endpoint)
+  def unbounded[T]()(implicit ordering: Ordering[T]): UnboundedBuilder[T] = UnboundedBuilder[T]
 }

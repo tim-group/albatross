@@ -2,7 +2,7 @@ package com.youdevise.albatross
 
 import org.specs2.Specification
 
-import Intervals._
+import Bounds._
 import Discrete._
 
 class DiscreteSpec extends Specification {
